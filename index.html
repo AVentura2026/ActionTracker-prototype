@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Action Tracker — Pilot build</title>
+<title>Action Tracker — Pilot build v2</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <style>
@@ -21,8 +21,8 @@ function addDays(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r;}
 function fmtDate(d){if(!d)return"—";return new Date(d).toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});}
 
 const INITIAL_ACTIONS=[
-  {id:"AT-0001",title:"Second admissions desk at peak time",createdDate:addDays(TODAY,-10),targetDate:addDays(TODAY,12),owner:"awhite",status:"todo"},
-  {id:"AT-0002",title:"Clearer discharge medication instructions",createdDate:addDays(TODAY,-8),targetDate:addDays(TODAY,-3),owner:"sbrown",status:"ip"},
+  {id:"AT-0001",title:"Second admissions desk at peak time",createdDate:addDays(TODAY,-10),targetDate:addDays(TODAY,12),owner:"awhite",status:"todo",reviewIds:["89d78f7b4b8c18e3db7892ba","4a21cd9f8e2b1c7fa3d90156"]},
+  {id:"AT-0002",title:"Clearer discharge medication instructions",createdDate:addDays(TODAY,-8),targetDate:addDays(TODAY,-3),owner:"sbrown",status:"ip",reviewIds:["4a21cd9f8e2b1c7fa3d90156"]},
   {id:"AT-0003",title:"Replace waiting room chairs in Oncology",createdDate:addDays(TODAY,-30),targetDate:addDays(TODAY,-20),closeDate:addDays(TODAY,-18),owner:"awhite",status:"closed"},
   {id:"AT-0004",title:"Waiting time information at triage",createdDate:addDays(TODAY,-35),targetDate:addDays(TODAY,-30),closeDate:addDays(TODAY,-25),owner:"jsmith",status:"closed"},
   {id:"AT-0005",title:"Duplicate billing on private consultation",createdDate:addDays(TODAY,-50),targetDate:addDays(TODAY,-45),closeDate:addDays(TODAY,-40),owner:"jsmith",status:"closed"},
@@ -89,11 +89,16 @@ function App(){
   const [expandedReview,setExpandedReview]=useState("89d78f7b4b8c18e3db7892ba");
   const [fTitle,setFTitle]=useState("");
   const [fInsight,setFInsight]=useState("");
+  const [fTheme,setFTheme]=useState("");
+  const [fOwner,setFOwner]=useState("awhite");
+  const [fReviews,setFReviews]=useState([]);
   const [fReview,setFReview]=useState("");
   const [fDesc,setFDesc]=useState("");
   const [fDate,setFDate]=useState("");
   const [fErr,setFErr]=useState("");
   const [prelinkedReview,setPrelinkedReview]=useState(null);
+
+  const THEMES=["Responsive and accessible care","Clear communication","Safe and effective treatment","Emotional support and respect","Involvement in decisions","Physical comfort and environment","Continuity and coordination","Staff attitude and professionalism"];
   const [cDate,setCDate]=useState("");
   const [cNotes,setCNotes]=useState("");
   const [cErr,setCErr]=useState("");
@@ -111,8 +116,8 @@ function App(){
     if(!fTitle.trim()||!fInsight.trim()){setFErr("Title and actionable insight are required to publish an action.");return;}
     setFErr("");
     const newId=`AT-00${String(actions.length+1).padStart(2,"0")}`;
-    setActions(prev=>[{id:newId,title:fTitle.trim(),createdDate:TODAY,targetDate:fDate?new Date(fDate):null,owner:"awhite",status:"todo",reviewId:fReview||null},...prev]);
-    setFTitle("");setFInsight("");setFReview("");setFDesc("");setFDate("");setPrelinkedReview(null);setScreen("list");
+    setActions(prev=>[{id:newId,title:fTitle.trim(),createdDate:TODAY,targetDate:fDate?new Date(fDate):null,owner:fOwner||"awhite",theme:fTheme,status:"todo",reviewIds:prelinkedReview?[prelinkedReview.id,...fReviews]:fReviews},...prev]);
+    setFTitle("");setFInsight("");setFTheme("");setFOwner("awhite");setFReviews([]);setFReview("");setFDesc("");setFDate("");setPrelinkedReview(null);setScreen("list");
   }
   function confirmClose(){
     if(!cDate){setCErr("Actual completion date is required to close an action.");return;}
@@ -122,8 +127,8 @@ function App(){
   }
   function changeStatus(id,ns){setActions(prev=>prev.map(a=>a.id===id?{...a,status:ns}:a));setShowStatusDrop(false);}
   function exportCSV(){
-    const h=["ID","Title","Date created","Target date","Close date","Created by","Status"];
-    const rows=filtered.map(a=>[a.id,`"${a.title}"`,fmtDate(a.createdDate),a.targetDate?fmtDate(a.targetDate):"—",a.closeDate?fmtDate(a.closeDate):"—",a.owner,a.status==="todo"?"To Do":a.status==="ip"?"In Progress":"Complete"]);
+    const h=["ID","Title","Status","Theme","Owner","Target date","Date created","Close date"];
+    const rows=filtered.map(a=>[a.id,`"${a.title}"`,a.status==="todo"?"To Do":a.status==="ip"?"In Progress":"Complete",a.theme||"—",a.owner,a.targetDate?fmtDate(a.targetDate):"—",fmtDate(a.createdDate),a.closeDate?fmtDate(a.closeDate):"—"]);
     const csv=[h,...rows].map(r=>r.join(",")).join("\n");
     const blob=new Blob([csv],{type:"text/csv"});
     const url=URL.createObjectURL(blob);
@@ -196,10 +201,6 @@ function App(){
         e("div",null,
           e("h1",{style:{fontSize:18,fontWeight:700,color:"#111827"}},"Action Tracker"),
           e("p",{style:{fontSize:12,color:"#6B7280",marginTop:4}},"Record, track and report on actions taken in response to patient feedback."),
-          e("label",{style:{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"#6B7280",marginTop:8,cursor:"pointer"}},
-            e("input",{type:"checkbox",checked:viewAll,onChange:ev=>{setViewAll(ev.target.checked);setPage(1);}}),
-            "View all actions"
-          )
         ),
         e("div",{style:{display:"flex",gap:8}},
           e("button",{style:bG,onClick:exportCSV},"⬇ Export CSV"),
@@ -215,7 +216,7 @@ function App(){
       e("div",{style:{overflowX:"auto"}},
         e("table",{style:{width:"100%",borderCollapse:"collapse"}},
           e("thead",null,e("tr",null,
-            ...["ID","Title / insight","Date created","Target date","Close date","Created by","Status","Actions"].map(h=>e("th",{key:h,style:thS},h))
+            ...["ID","Title / insight","Status","Theme","Owner","Target date","Date created","Close date","Actions"].map(h=>e("th",{key:h,style:thS},h))
           )),
           e("tbody",null,filtered.length===0
             ?e("tr",null,e("td",{colSpan:8,style:{textAlign:"center",padding:32,color:"#9CA3AF",fontSize:13}},"No actions in this view."))
@@ -223,11 +224,7 @@ function App(){
                 onMouseEnter:ev=>Array.from(ev.currentTarget.cells).forEach(td=>td.style.background="#F9FAFB"),
                 onMouseLeave:ev=>Array.from(ev.currentTarget.cells).forEach(td=>td.style.background="")},
               e("td",{style:{...tdS,fontFamily:"monospace",fontSize:11,color:"#9CA3AF"}},a.id),
-              e("td",{style:tdS},e("span",{style:{fontWeight:500}},a.title),a.reviewId&&e("span",{style:{fontSize:10,marginLeft:6,padding:"1px 5px",borderRadius:99,background:"#EFF6FF",color:"#1D4ED8"}},"linked")),
-              e("td",{style:{...tdS,fontSize:12,color:"#6B7280"}},fmtDate(a.createdDate)),
-              e("td",{style:{...tdS,fontSize:12,color:"#6B7280"}},a.targetDate?fmtDate(a.targetDate):"—"),
-              e("td",{style:{...tdS,fontSize:12,color:"#6B7280"}},a.closeDate?fmtDate(a.closeDate):"—"),
-              e("td",{style:{...tdS,fontSize:12,color:"#6B7280"}},a.owner),
+              e("td",{style:tdS},e("span",{style:{fontWeight:500}},a.title),(a.reviewIds&&a.reviewIds.length>0||a.reviewId)&&e("span",{style:{fontSize:10,marginLeft:6,padding:"1px 5px",borderRadius:99,background:"#EFF6FF",color:"#1D4ED8"}},a.reviewIds&&a.reviewIds.length>1?`${a.reviewIds.length} reviews`:"linked")),
               e("td",{style:tdS,onClick:ev=>ev.stopPropagation()},
                 e("div",{style:{position:"relative",display:"inline-block"}},
                   e("div",{onClick:ev=>{ev.stopPropagation();setListStatusDrop(listStatusDrop===a.id?null:a.id);},
@@ -252,6 +249,11 @@ function App(){
                   )
                 )
               ),
+              e("td",{style:{...tdS,fontSize:12,color:"#6B7280"}},a.theme||"—"),
+              e("td",{style:{...tdS,fontSize:12,color:"#6B7280"}},a.owner),
+              e("td",{style:{...tdS,fontSize:12,color:"#6B7280"}},a.targetDate?fmtDate(a.targetDate):"—"),
+              e("td",{style:{...tdS,fontSize:12,color:"#6B7280"}},fmtDate(a.createdDate)),
+              e("td",{style:{...tdS,fontSize:12,color:"#6B7280"}},a.closeDate?fmtDate(a.closeDate):"—"),
               e("td",{style:tdS,onClick:ev=>ev.stopPropagation()},
                 e("button",{style:{background:"none",border:"none",cursor:"pointer",color:"#9CA3AF",fontSize:15},title:"Edit",onClick:()=>goDetail(a.id)},"✎")
               )
@@ -275,41 +277,59 @@ function App(){
         fErr&&e("div",{style:{fontSize:12,color:"#991B1B",background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:6,padding:"8px 12px",marginBottom:16}},fErr),
         e(Field,{label:"Title *",hint:"Short label so this action can be scanned in a list."},e("input",{type:"text",value:fTitle,onChange:ev=>setFTitle(ev.target.value),placeholder:"e.g. Second admissions desk at peak time",style:iS})),
         e(Field,{label:"Actionable insight *"},e("textarea",{value:fInsight,onChange:ev=>setFInsight(ev.target.value),placeholder:"What data or feedback prompted this action?",style:{...iS,height:72,resize:"none"}})),
-        e(Field,{label:e(React.Fragment,null,"Link to review ",e("span",{style:{fontSize:11,color:"#9CA3AF",fontWeight:400}},"(optional)")),hint:"Type or paste a review ID or select a review to link this action to it for traceability. Only the link is stored — no review content is copied."},
-          prelinkedReview
-            ?e("div",{style:{border:"1px solid #BFDBFE",borderRadius:6,background:"#EFF6FF",padding:"8px 12px",display:"flex",alignItems:"center",justifyContent:"space-between"}},
-                e("div",null,
-                  e("p",{style:{fontSize:12,fontWeight:500,color:"#1D4ED8"}},`${prelinkedReview.reviewable} · ${prelinkedReview.source} · ${prelinkedReview.score}★`),
-                  e("p",{style:{fontSize:11,color:"#6B7280",fontFamily:"monospace",marginTop:2}},prelinkedReview.id.substring(0,24)+"...")
-                ),
-                e("button",{onClick:()=>{setPrelinkedReview(null);setFReview("");setShowReviewDrop(false);},style:{background:"none",border:"none",cursor:"pointer",color:"#9CA3AF",fontSize:13}},"✕ Remove")
+        e(Field,{label:e(React.Fragment,null,"Theme ",e("span",{style:{fontSize:11,color:"#9CA3AF",fontWeight:400}},"(optional)")),hint:"List of topics specific to each client."},
+          e("select",{value:fTheme,onChange:ev=>setFTheme(ev.target.value),style:iS},
+            e("option",{value:""},"Select a theme…"),
+            THEMES.map(t=>e("option",{key:t,value:t},t))
+          )
+        ),
+        e(Field,{label:e(React.Fragment,null,"Owner ",e("span",{style:{fontSize:11,color:"#9CA3AF",fontWeight:400}},"(optional)")),hint:"Auto-filled with your username. Edit to assign to someone else."},
+          e("input",{type:"text",value:fOwner,onChange:ev=>setFOwner(ev.target.value),placeholder:"e.g. awhite",style:iS})
+        ),
+        e(Field,{label:e(React.Fragment,null,"Link to review(s) ",e("span",{style:{fontSize:11,color:"#9CA3AF",fontWeight:400}},"(optional)")),hint:"Type or paste a review ID or select from the list. Multiple reviews can be linked — actions respond to patterns, not isolated cases. Only the links are stored."},
+          e("div",null,
+            prelinkedReview&&e("div",{style:{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",marginBottom:6}},
+              e("div",{style:{border:"1px solid #BFDBFE",borderRadius:6,background:"#EFF6FF",padding:"4px 10px",display:"inline-flex",alignItems:"center",gap:8}},
+                e("span",{style:{fontSize:12,fontWeight:500,color:"#1D4ED8"}},"[pre-linked] "+prelinkedReview.reviewable+" · "+prelinkedReview.score+"★"),
+                e("button",{onClick:()=>{setPrelinkedReview(null);},style:{background:"none",border:"none",cursor:"pointer",color:"#9CA3AF",fontSize:12}},"✕")
               )
-            :e("div",{style:{position:"relative"}},
-                e("div",{style:{display:"flex",alignItems:"center",border:"1px solid #E5E7EB",borderRadius:6,background:"#fff",overflow:"hidden"}},
-                  e("input",{type:"text",value:fReview,onChange:ev=>setFReview(ev.target.value),onFocus:()=>setShowReviewDrop(true),placeholder:"Type or paste a review ID",style:{...iS,border:"none",borderRadius:0,flex:1}}),
-                  e("div",{onClick:()=>setShowReviewDrop(s=>!s),style:{padding:"0 10px",cursor:"pointer",borderLeft:"1px solid #E5E7EB",height:"100%",display:"flex",alignItems:"center",background:"#F9FAFB"}},
-                    e("span",{style:{color:"#6B7280",fontSize:12}},"▾")
+            ),
+            fReviews.length>0&&e("div",{style:{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",marginBottom:6}},
+              fReviews.map((rid,i)=>{
+                const r=REVIEWS.find(r=>r.id===rid);
+                return e("div",{key:rid,style:{border:"1px solid #BFDBFE",borderRadius:6,background:"#EFF6FF",padding:"4px 10px",display:"inline-flex",alignItems:"center",gap:8}},
+                  e("span",{style:{fontSize:12,fontWeight:500,color:"#1D4ED8"}},r?r.reviewable+" · "+r.score+"★":rid.substring(0,16)+"..."),
+                  e("button",{onClick:()=>setFReviews(prev=>prev.filter((_,j)=>j!==i)),style:{background:"none",border:"none",cursor:"pointer",color:"#9CA3AF",fontSize:12}},"✕")
+                );
+              })
+            ),
+            e("div",{style:{position:"relative"}},
+              e("div",{style:{display:"flex",alignItems:"center",border:"1px solid #E5E7EB",borderRadius:6,background:"#fff",overflow:"hidden"}},
+                e("input",{type:"text",value:fReview,onChange:ev=>setFReview(ev.target.value),onFocus:()=>setShowReviewDrop(true),placeholder:"Type or paste a review ID or URL",style:{...iS,border:"none",borderRadius:0,flex:1}}),
+                e("div",{onClick:()=>setShowReviewDrop(s=>!s),style:{padding:"0 10px",cursor:"pointer",borderLeft:"1px solid #E5E7EB",height:"100%",display:"flex",alignItems:"center",background:"#F9FAFB"}},
+                  e("span",{style:{color:"#6B7280",fontSize:12}},"▾")
+                )
+              ),
+              showReviewDrop&&e("div",{style:{position:"absolute",top:"calc(100% + 2px)",left:0,right:0,background:"#fff",border:"1px solid #E5E7EB",borderRadius:6,boxShadow:"0 4px 12px rgba(0,0,0,0.08)",zIndex:20,overflow:"hidden"}},
+                REVIEWS.filter(r=>!fReview||r.reviewable.toLowerCase().includes(fReview.toLowerCase())||r.id.includes(fReview)).map(r=>
+                  e("div",{key:r.id,onClick:()=>{if(!fReviews.includes(r.id)){setFReviews(prev=>[...prev,r.id]);}setFReview("");setShowReviewDrop(false);},
+                    style:{padding:"10px 12px",cursor:"pointer",borderBottom:"1px solid #F3F4F6"},
+                    onMouseEnter:ev=>ev.currentTarget.style.background="#F9FAFB",
+                    onMouseLeave:ev=>ev.currentTarget.style.background=""},
+                    e("p",{style:{fontSize:13,fontWeight:500,color:"#111827"}},r.reviewable+" · "+r.source+" · "+r.score+"★"),
+                    e("p",{style:{fontSize:11,color:"#9CA3AF",fontFamily:"monospace",marginTop:2}},r.id.substring(0,24)+"...")
                   )
                 ),
-                showReviewDrop&&e("div",{style:{position:"absolute",top:"calc(100% + 2px)",left:0,right:0,background:"#fff",border:"1px solid #E5E7EB",borderRadius:6,boxShadow:"0 4px 12px rgba(0,0,0,0.08)",zIndex:20,overflow:"hidden"}},
-                  REVIEWS.filter(r=>!fReview||r.reviewable.toLowerCase().includes(fReview.toLowerCase())||r.id.includes(fReview)).map(r=>
-                    e("div",{key:r.id,onClick:()=>{setFReview(r.id);setPrelinkedReview(r);setShowReviewDrop(false);},
-                      style:{padding:"10px 12px",cursor:"pointer",borderBottom:"1px solid #F3F4F6"},
-                      onMouseEnter:ev=>ev.currentTarget.style.background="#F9FAFB",
-                      onMouseLeave:ev=>ev.currentTarget.style.background=""},
-                      e("p",{style:{fontSize:13,fontWeight:500,color:"#111827"}},`${r.reviewable} · ${r.source} · ${r.score}★`),
-                      e("p",{style:{fontSize:11,color:"#9CA3AF",fontFamily:"monospace",marginTop:2}},r.id.substring(0,24)+"...")
-                    )
-                  ),
-                  REVIEWS.filter(r=>!fReview||r.reviewable.toLowerCase().includes(fReview.toLowerCase())||r.id.includes(fReview)).length===0&&
-                    e("div",{style:{padding:"10px 12px",fontSize:13,color:"#9CA3AF"}},"No reviews found.")
-                )
+                REVIEWS.filter(r=>!fReview||r.reviewable.toLowerCase().includes(fReview.toLowerCase())||r.id.includes(fReview)).length===0&&
+                  e("div",{style:{padding:"10px 12px",fontSize:13,color:"#9CA3AF"}},"No reviews found.")
               )
+            )
+          )
         ),
         e(Field,{label:"Description of the action",hint:"Optional"},e("textarea",{value:fDesc,onChange:ev=>setFDesc(ev.target.value),placeholder:"What are you going to do about it?",style:{...iS,height:72,resize:"none"}})),
         e(Field,{label:"Target completion date",hint:"Optional — intended date, not the actual completion date."},e("input",{type:"date",value:fDate,onChange:ev=>setFDate(ev.target.value),style:iS})),
         e("div",{style:{display:"flex",gap:8,marginTop:8}},
-          e("button",{style:bS,onClick:()=>{setPrelinkedReview(null);setScreen("list");}},"Cancel"),
+          e("button",{style:bS,onClick:()=>{setPrelinkedReview(null);setFReviews([]);setScreen("list");}},"Cancel"),
           e("button",{style:bP,onClick:publish},"Publish")
         )
       )
@@ -351,7 +371,7 @@ function App(){
               )
             )
           ),
-          e("span",{style:{fontSize:12,color:"#6B7280"}},"Created by: "+sel.owner),
+          e("span",{style:{fontSize:12,color:"#6B7280"}},"Owner: "+sel.owner),
           sel.reviewId&&e("span",{style:{fontSize:11,padding:"2px 6px",borderRadius:99,background:"#EFF6FF",color:"#1D4ED8",fontWeight:500}},"linked to review")
         ),
         e("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16,marginBottom:20,background:"#F9FAFB",borderRadius:8,padding:16}},
@@ -365,34 +385,48 @@ function App(){
         e("p",{style:{fontSize:13,fontWeight:600,color:"#374151",marginBottom:16}},"Edit details"),
         e(Field,{label:"Title *"},e("input",{type:"text",defaultValue:sel.title,style:iS})),
         e(Field,{label:"Actionable insight *"},e("textarea",{defaultValue:"Multiple reviews mention long queues for blood tests first thing in the morning, with queues reaching outside the building.",style:{...iS,height:72,resize:"none"}})),
-        e(Field,{label:e(React.Fragment,null,"Link to review ",e("span",{style:{fontSize:11,color:"#9CA3AF",fontWeight:400}},"(optional)")),hint:"Type or paste a review ID or select a review to link this action to it for traceability. Only the link is stored — no review content is copied."},
-          sel.reviewId
-            ?e("div",{style:{border:"1px solid #BFDBFE",borderRadius:6,background:"#EFF6FF",padding:"8px 12px",display:"flex",alignItems:"center",justifyContent:"space-between"}},
-                e("div",null,
-                  e("p",{style:{fontSize:12,fontWeight:500,color:"#1D4ED8"}},`${REVIEWS.find(r=>r.id===sel.reviewId)?.reviewable||sel.reviewId} · linked`),
-                  e("p",{style:{fontSize:11,color:"#6B7280",fontFamily:"monospace",marginTop:2}},sel.reviewId.substring(0,24)+"...")
-                ),
-                e("button",{onClick:()=>setActions(prev=>prev.map(a=>a.id===selId?{...a,reviewId:null}:a)),style:{background:"none",border:"none",cursor:"pointer",color:"#9CA3AF",fontSize:13}},"✕ Remove")
-              )
-            :e("div",{style:{position:"relative"}},
-                e("div",{style:{display:"flex",alignItems:"center",border:"1px solid #E5E7EB",borderRadius:6,background:"#fff",overflow:"hidden"}},
-                  e("input",{type:"text",placeholder:"Type or paste a review ID",style:{...iS,border:"none",borderRadius:0,flex:1},onFocus:()=>setShowReviewDrop("detail")}),
-                  e("div",{onClick:()=>setShowReviewDrop(showReviewDrop==="detail"?false:"detail"),style:{padding:"0 10px",cursor:"pointer",borderLeft:"1px solid #E5E7EB",display:"flex",alignItems:"center",background:"#F9FAFB"}},
-                    e("span",{style:{color:"#6B7280",fontSize:12}},"▾")
-                  )
-                ),
-                showReviewDrop==="detail"&&e("div",{style:{position:"absolute",top:"calc(100% + 2px)",left:0,right:0,background:"#fff",border:"1px solid #E5E7EB",borderRadius:6,boxShadow:"0 4px 12px rgba(0,0,0,0.08)",zIndex:20,overflow:"hidden"}},
-                  REVIEWS.map(r=>
-                    e("div",{key:r.id,onClick:()=>{setActions(prev=>prev.map(a=>a.id===selId?{...a,reviewId:r.id}:a));setShowReviewDrop(false);},
-                      style:{padding:"10px 12px",cursor:"pointer",borderBottom:"1px solid #F3F4F6"},
-                      onMouseEnter:ev=>ev.currentTarget.style.background="#F9FAFB",
-                      onMouseLeave:ev=>ev.currentTarget.style.background=""},
-                      e("p",{style:{fontSize:13,fontWeight:500,color:"#111827"}},`${r.reviewable} · ${r.source} · ${r.score}★`),
-                      e("p",{style:{fontSize:11,color:"#9CA3AF",fontFamily:"monospace",marginTop:2}},r.id.substring(0,24)+"...")
-                    )
-                  )
+        e(Field,{label:e(React.Fragment,null,"Theme ",e("span",{style:{fontSize:11,color:"#9CA3AF",fontWeight:400}},"(optional)")),hint:"List of topics specific to each client."},
+          e("select",{defaultValue:sel.theme||"",style:iS},
+            e("option",{value:""},"Select a theme…"),
+            THEMES.map(t=>e("option",{key:t,value:t},t))
+          )
+        ),
+        e(Field,{label:e(React.Fragment,null,"Owner ",e("span",{style:{fontSize:11,color:"#9CA3AF",fontWeight:400}},"(optional)")),hint:"Auto-filled with the action creator's username. Edit to reassign to someone else."},
+          e("input",{type:"text",defaultValue:sel.owner,style:iS})
+        ),
+        e(Field,{label:e(React.Fragment,null,"Link to review(s) ",e("span",{style:{fontSize:11,color:"#9CA3AF",fontWeight:400}},"(optional)")),hint:"Type or paste a review ID or select from the list. Multiple reviews can be linked. Only the links are stored."},
+          e("div",null,
+            (sel.reviewIds&&sel.reviewIds.length>0)&&e("div",{style:{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",marginBottom:6}},
+              sel.reviewIds.map((rid,i)=>{
+                const r=REVIEWS.find(r=>r.id===rid);
+                return e("div",{key:rid,style:{border:"1px solid #BFDBFE",borderRadius:6,background:"#EFF6FF",padding:"4px 10px",display:"inline-flex",alignItems:"center",gap:8}},
+                  e("span",{style:{fontSize:12,fontWeight:500,color:"#1D4ED8"}},r?r.reviewable+" · "+r.score+"★":rid.substring(0,16)+"..."),
+                  e("button",{onClick:()=>setActions(prev=>prev.map(a=>a.id===selId?{...a,reviewIds:a.reviewIds.filter((_,j)=>j!==i)}:a)),style:{background:"none",border:"none",cursor:"pointer",color:"#9CA3AF",fontSize:12}},"✕")
+                );
+              })
+            ),
+            e("div",{style:{position:"relative"}},
+              e("div",{style:{display:"flex",alignItems:"center",border:"1px solid #E5E7EB",borderRadius:6,background:"#fff",overflow:"hidden"}},
+                e("input",{type:"text",placeholder:"Type or paste a review ID",style:{...iS,border:"none",borderRadius:0,flex:1},onFocus:()=>setShowReviewDrop("detail")}),
+                e("div",{onClick:()=>setShowReviewDrop(showReviewDrop==="detail"?false:"detail"),style:{padding:"0 10px",cursor:"pointer",borderLeft:"1px solid #E5E7EB",display:"flex",alignItems:"center",background:"#F9FAFB"}},
+                  e("span",{style:{color:"#6B7280",fontSize:12}},"▾")
                 )
+              ),
+              showReviewDrop==="detail"&&e("div",{style:{position:"absolute",top:"calc(100% + 2px)",left:0,right:0,background:"#fff",border:"1px solid #E5E7EB",borderRadius:6,boxShadow:"0 4px 12px rgba(0,0,0,0.08)",zIndex:20,overflow:"hidden"}},
+                REVIEWS.filter(r=>!(sel.reviewIds||[]).includes(r.id)).map(r=>
+                  e("div",{key:r.id,onClick:()=>{setActions(prev=>prev.map(a=>a.id===selId?{...a,reviewIds:[...(a.reviewIds||[]),r.id]}:a));setShowReviewDrop(false);},
+                    style:{padding:"10px 12px",cursor:"pointer",borderBottom:"1px solid #F3F4F6"},
+                    onMouseEnter:ev=>ev.currentTarget.style.background="#F9FAFB",
+                    onMouseLeave:ev=>ev.currentTarget.style.background=""},
+                    e("p",{style:{fontSize:13,fontWeight:500,color:"#111827"}},`${r.reviewable} · ${r.source} · ${r.score}★`),
+                    e("p",{style:{fontSize:11,color:"#9CA3AF",fontFamily:"monospace",marginTop:2}},r.id.substring(0,24)+"...")
+                  )
+                ),
+                REVIEWS.filter(r=>!(sel.reviewIds||[]).includes(r.id)).length===0&&
+                  e("div",{style:{padding:"10px 12px",fontSize:13,color:"#9CA3AF"}},"All reviews already linked.")
               )
+            )
+          )
         ),
         e(Field,{label:"Description"},e("textarea",{defaultValue:"Open a second admissions desk from 8:00 to 9:30 and reshuffle morning staff rota.",style:{...iS,height:72,resize:"none"}})),
         e(Field,{label:"Target completion date"},e("input",{type:"date",defaultValue:"2026-09-29",style:iS})),
@@ -419,7 +453,7 @@ function App(){
       e("div",{style:{padding:"20px"}},
         e("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:20}},
           e(StatusPill,{status:sel.status}),
-          e("span",{style:{fontSize:12,color:"#6B7280"}},"Created by: "+sel.owner)
+          e("span",{style:{fontSize:12,color:"#6B7280"}},"Owner: "+sel.owner)
         ),
         cErr&&e("div",{style:{fontSize:12,color:"#991B1B",background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:6,padding:"8px 12px",marginBottom:16}},cErr),
         !cDone
