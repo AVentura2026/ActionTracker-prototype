@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Action Tracker — Pilot build</title>
+<title>Action Tracker — Pilot build v2</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <style>
@@ -224,7 +224,7 @@ function App(){
                 onMouseEnter:ev=>Array.from(ev.currentTarget.cells).forEach(td=>td.style.background="#F9FAFB"),
                 onMouseLeave:ev=>Array.from(ev.currentTarget.cells).forEach(td=>td.style.background="")},
               e("td",{style:{...tdS,fontFamily:"monospace",fontSize:11,color:"#9CA3AF"}},a.id),
-              e("td",{style:tdS},e("span",{style:{fontWeight:500}},a.title),(a.reviewIds&&a.reviewIds.length>0||a.reviewId)&&e("span",{style:{fontSize:10,marginLeft:6,padding:"1px 5px",borderRadius:99,background:"#EFF6FF",color:"#1D4ED8"}},a.reviewIds&&a.reviewIds.length>1?`${a.reviewIds.length} reviews`:"linked")),
+              e("td",{style:tdS},e("span",{style:{fontWeight:500}},a.title)),
               e("td",{style:tdS,onClick:ev=>ev.stopPropagation()},
                 e("div",{style:{position:"relative",display:"inline-block"}},
                   e("div",{onClick:ev=>{ev.stopPropagation();setListStatusDrop(listStatusDrop===a.id?null:a.id);},
